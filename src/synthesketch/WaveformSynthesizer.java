@@ -63,7 +63,9 @@ public class WaveformSynthesizer implements Receiver {
 			try {
 				SourceDataLine line = AudioSystem.getSourceDataLine(format,
 						mixer.getMixerInfo());
-				line.open(format);
+				int bufferSize = (int) (MAX_SAMPLE_IN_SECONDS
+						* format.getFrameRate() * format.getFrameSize());
+				line.open(format, bufferSize);
 				Oscillator oscillator = new Oscillator(line);
 				oscillators.add(oscillator);
 				idleOscillators.add(oscillator);
@@ -78,7 +80,8 @@ public class WaveformSynthesizer implements Receiver {
 	}
 
 	public void noteOn(int midiCode) {
-		if (!idleOscillators.isEmpty()) {
+		if (!activeOscillators.containsKey(midiCode)
+				&& !idleOscillators.isEmpty()) {
 			Oscillator oscillator = idleOscillators.remove();
 			oscillator.setMidiCode(midiCode);
 			threads.execute(oscillator);
@@ -88,7 +91,7 @@ public class WaveformSynthesizer implements Receiver {
 
 	public void noteOff(int midiCode) {
 		if (activeOscillators.containsKey(midiCode)) {
-			Oscillator oscillator = activeOscillators.get(midiCode);
+			Oscillator oscillator = activeOscillators.remove(midiCode);
 			oscillator.setActive(false);
 		}
 	}
