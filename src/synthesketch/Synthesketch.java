@@ -1,5 +1,7 @@
 package synthesketch;
 
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -12,6 +14,8 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
 public class Synthesketch {
 
@@ -22,7 +26,7 @@ public class Synthesketch {
 	public static void main(String[] args) throws LineUnavailableException,
 			UnsupportedAudioFormatException, MidiUnavailableException,
 			InterruptedException {
-		WaveformSynthesizer synth = new WaveformSynthesizer();
+		final WaveformSynthesizer synth = new WaveformSynthesizer();
 		Scanner input = new Scanner(System.in);
 		List<Mixer> mixers = new LinkedList<Mixer>();
 		for (Mixer.Info mixerInfo : AudioSystem.getMixerInfo()) {
@@ -66,9 +70,41 @@ public class Synthesketch {
 		synth.setOutput(selectedMixer, FORMAT);
 		selectedMidi.open();
 		selectedMidi.getTransmitter().setReceiver(synth);
-		synth.setWaveform(Waveforms.SINE_WAVE);
-		synchronized (synth) {
-			synth.wait();
-		}
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				final WaveformPanel editor = new WaveformPanel();
+				editor.setWaveform(Waveforms.SINE_WAVE);
+				try {
+					synth.setWaveform(editor.getWaveform());
+				} catch (UnsupportedAudioFormatException e) {}
+				editor.addMouseListener(new MouseListener() {
+					@Override
+					public void mouseReleased(MouseEvent e) {
+						try {
+							synth.setWaveform(editor.getWaveform());
+						} catch (UnsupportedAudioFormatException except) {}
+					}
+
+					@Override
+					public void mousePressed(MouseEvent e) {}
+
+					@Override
+					public void mouseExited(MouseEvent e) {}
+
+					@Override
+					public void mouseEntered(MouseEvent e) {}
+
+					@Override
+					public void mouseClicked(MouseEvent e) {}
+				});
+				JFrame window = new JFrame("Waveform");
+				window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+				window.add(editor);
+				window.pack();
+				window.setResizable(false);
+				window.setVisible(true);
+			}
+		});
 	}
 }
