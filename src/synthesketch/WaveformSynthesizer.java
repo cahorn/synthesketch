@@ -157,7 +157,7 @@ public class WaveformSynthesizer implements Receiver {
 
 	public void setWaveform(double[] waveform)
 			throws UnsupportedAudioFormatException {
-		this.waveform = waveform;
+		this.waveform = Arrays.copyOf(waveform, waveform.length);
 		createSamples();
 	}
 
