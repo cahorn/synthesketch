@@ -66,7 +66,7 @@ public class Synthesketch {
 		synth.setOutput(selectedMixer, FORMAT);
 		selectedMidi.open();
 		selectedMidi.getTransmitter().setReceiver(synth);
-		synth.setWaveform(WaveformSynthesizer.SINE_WAVE);
+		synth.setWaveform(Waveforms.SINE_WAVE);
 		synchronized (synth) {
 			synth.wait();
 		}

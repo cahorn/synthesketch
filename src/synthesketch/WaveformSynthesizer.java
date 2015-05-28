@@ -131,28 +131,6 @@ public class WaveformSynthesizer implements Receiver {
 
 	}
 
-	public static final double[] SINE_WAVE = new double[44100];
-	{
-		for (int i = 0; i < SINE_WAVE.length; ++i) {
-			SINE_WAVE[i] = Math.sin(interpolate(0, 2 * Math.PI, (double) i
-					/ SINE_WAVE.length));
-		}
-	}
-
-	public static final double[] SQUARE_WAVE = new double[44100];
-	{
-		for (int i = 0; i < SQUARE_WAVE.length; ++i) {
-			SQUARE_WAVE[i] = Math.signum(i - SQUARE_WAVE.length / 2);
-		}
-	}
-
-	public static final double[] SAW_WAVE = new double[44100];
-	{
-		for (int i = 0; i < SAW_WAVE.length; ++i) {
-			SAW_WAVE[i] = (double) i / SAW_WAVE.length;
-		}
-	}
-
 	double[] waveform;
 
 	public void setWaveform(double[] waveform)
@@ -187,19 +165,8 @@ public class WaveformSynthesizer implements Receiver {
 		int sampleInPeriods = (int) Math.floor(MAX_SAMPLE_IN_SECONDS
 				/ periodInSecond);
 		int sampleInFrames = (int) Math.round(sampleInPeriods * periodInFrames);
-		double[] sample = new double[sampleInFrames];
-		for (int i = 0; i < sample.length; ++i) {
-			double waveformPosition = i % periodInFrames / periodInFrames;
-			int lowerSample = (int) Math.floor(waveformPosition
-					* waveform.length)
-					% waveform.length;
-			int upperSample = (int) Math.ceil(waveformPosition
-					* waveform.length)
-					% waveform.length;
-			sample[i] = interpolate(waveform[lowerSample],
-					waveform[upperSample],
-					waveformPosition - Math.floor(waveformPosition));
-		}
+		double[] sample = Waveforms.resample(waveform, sampleInFrames,
+				periodInFrames);
 		int frameInBytes = format.getSampleSizeInBits() / 8
 				* format.getChannels();
 		ByteBuffer sampleAsBytes = ByteBuffer.allocate(sample.length
@@ -247,10 +214,6 @@ public class WaveformSynthesizer implements Receiver {
 		}
 		samples.put(midiCode, sampleAsBytes.array());
 
-	}
-
-	double interpolate(double x, double y, double d) {
-		return x + d * (y - x);
 	}
 
 	private static double frequency(int midiCode) {
