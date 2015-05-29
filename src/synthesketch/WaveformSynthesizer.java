@@ -83,7 +83,7 @@ public class WaveformSynthesizer implements Receiver {
 		if (!activeOscillators.containsKey(midiCode)
 				&& !idleOscillators.isEmpty()) {
 			Oscillator oscillator = idleOscillators.remove();
-			oscillator.setMidiCode(midiCode);
+			oscillator.midiCode = midiCode;
 			threads.execute(oscillator);
 			activeOscillators.put(midiCode, oscillator);
 		}
@@ -92,7 +92,7 @@ public class WaveformSynthesizer implements Receiver {
 	public void noteOff(int midiCode) {
 		if (activeOscillators.containsKey(midiCode)) {
 			Oscillator oscillator = activeOscillators.remove(midiCode);
-			oscillator.setActive(false);
+			oscillator.active = false;
 		}
 	}
 
@@ -103,18 +103,8 @@ public class WaveformSynthesizer implements Receiver {
 		}
 
 		SourceDataLine line;
-
 		int midiCode;
-
-		public void setMidiCode(int midiCode) {
-			this.midiCode = midiCode;
-		}
-
 		volatile boolean active;
-
-		public void setActive(boolean active) {
-			this.active = active;
-		}
 
 		@Override
 		public void run() {
@@ -240,7 +230,7 @@ public class WaveformSynthesizer implements Receiver {
 	@Override
 	public void close() {
 		for (Oscillator o : oscillators) {
-			o.setActive(false);
+			o.active = false;
 		}
 		threads.shutdown();
 	}

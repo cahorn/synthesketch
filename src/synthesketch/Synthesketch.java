@@ -14,6 +14,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
@@ -24,8 +25,7 @@ public class Synthesketch {
 	static final AudioFormat FORMAT = new AudioFormat(44100, 32, 1, true, false);
 
 	public static void main(String[] args) throws LineUnavailableException,
-			UnsupportedAudioFormatException, MidiUnavailableException,
-			InterruptedException {
+			UnsupportedAudioFormatException, InterruptedException {
 		final WaveformSynthesizer synth = new WaveformSynthesizer();
 		Scanner input = new Scanner(System.in);
 		List<Mixer> mixers = new LinkedList<Mixer>();
@@ -65,11 +65,9 @@ public class Synthesketch {
 			System.out.println();
 		}
 		System.out.print("Select a midi input: ");
-		MidiDevice selectedMidi = midis.get(input.nextInt());
+		final MidiDevice selectedMidi = midis.get(input.nextInt());
 		input.close();
 		synth.setOutput(selectedMixer, FORMAT);
-		selectedMidi.open();
-		selectedMidi.getTransmitter().setReceiver(synth);
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
@@ -104,6 +102,19 @@ public class Synthesketch {
 				window.pack();
 				window.setResizable(false);
 				window.setVisible(true);
+				KeyboardPanel keyboard = new KeyboardPanel();
+				try {
+					selectedMidi.open();
+					selectedMidi.getTransmitter().setReceiver(keyboard);
+				} catch (MidiUnavailableException e) {}
+				keyboard.setReceiver(synth);
+				JDialog dialog = new JDialog(window, "Keyboard", false);
+				dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+				dialog.add(keyboard);
+				dialog.pack();
+				dialog.addKeyListener(keyboard);
+				dialog.setResizable(false);
+				dialog.setVisible(true);
 			}
 		});
 	}
