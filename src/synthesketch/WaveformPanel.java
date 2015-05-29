@@ -5,16 +5,23 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
 
 import javax.swing.JPanel;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 @SuppressWarnings("serial")
-public class WaveformPanel extends JPanel implements MouseMotionListener {
+public class WaveformPanel extends JPanel implements MouseListener,
+		MouseMotionListener {
 
 	public WaveformPanel() {
 		setPreferredSize(SIZE);
+		addMouseListener(this);
 		addMouseMotionListener(this);
 	}
 
@@ -36,6 +43,25 @@ public class WaveformPanel extends JPanel implements MouseMotionListener {
 
 	public double[] getWaveform() {
 		return waveform;
+	}
+
+	@Override
+	public void mouseClicked(MouseEvent e) {}
+
+	@Override
+	public void mouseEntered(MouseEvent e) {}
+
+	@Override
+	public void mouseExited(MouseEvent e) {}
+
+	@Override
+	public void mousePressed(MouseEvent e) {}
+
+	@Override
+	public void mouseReleased(MouseEvent e) {
+		for (ChangeListener l : listeners) {
+			l.stateChanged(new ChangeEvent(this));
+		}
 	}
 
 	@Override
@@ -88,6 +114,20 @@ public class WaveformPanel extends JPanel implements MouseMotionListener {
 			g.setColor(Color.WHITE);
 			g.drawString("Drag mouse to edit waveform.", 10, 20);
 		}
+	}
+
+	List<ChangeListener> listeners = new LinkedList<ChangeListener>();
+
+	public void addChangeListener(ChangeListener listener) {
+		listeners.add(listener);
+	}
+
+	public void removeChangeListener(ChangeListener listener) {
+		listeners.remove(listener);
+	}
+
+	public ChangeListener[] getChangeListeners() {
+		return (ChangeListener[]) listeners.toArray();
 	}
 
 }

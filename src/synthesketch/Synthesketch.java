@@ -1,7 +1,5 @@
 package synthesketch;
 
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -17,6 +15,8 @@ import javax.sound.sampled.Mixer;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 public class Synthesketch {
 
@@ -76,25 +76,13 @@ public class Synthesketch {
 				try {
 					synth.setWaveform(editor.getWaveform());
 				} catch (UnsupportedAudioFormatException e) {}
-				editor.addMouseListener(new MouseListener() {
+				editor.addChangeListener(new ChangeListener() {
 					@Override
-					public void mouseReleased(MouseEvent e) {
+					public void stateChanged(ChangeEvent e) {
 						try {
 							synth.setWaveform(editor.getWaveform());
 						} catch (UnsupportedAudioFormatException except) {}
 					}
-
-					@Override
-					public void mousePressed(MouseEvent e) {}
-
-					@Override
-					public void mouseExited(MouseEvent e) {}
-
-					@Override
-					public void mouseEntered(MouseEvent e) {}
-
-					@Override
-					public void mouseClicked(MouseEvent e) {}
 				});
 				JFrame window = new JFrame("Waveform");
 				window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
