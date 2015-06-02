@@ -237,6 +237,22 @@ public class KeyboardPanel extends JPanel implements KeyListener,
 		setReceiver(null);
 	}
 
+	Transmitter transmitter;
+
+	public Transmitter getTransmitter() {
+		return transmitter;
+	}
+	
+	public void setTransmitter(Transmitter transmitter) {
+		if (transmitter != null) {
+			transmitter.setReceiver(this);
+		}
+		if (this.transmitter != null) {
+			this.transmitter.setReceiver(null);
+		}
+		this.transmitter = transmitter;
+	}
+	
 	Receiver receiver;
 
 	@Override

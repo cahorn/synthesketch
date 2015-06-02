@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import javax.sound.midi.MidiMessage;
 import javax.sound.midi.Receiver;
 import javax.sound.midi.ShortMessage;
+import javax.sound.midi.Transmitter;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioFormat.Encoding;
 import javax.sound.sampled.AudioSystem;
@@ -285,6 +286,22 @@ public class WaveformSynthesizer implements Receiver {
 	public void close() {
 		clearOutput();
 		setWaveform(null);
+	}
+
+	Transmitter transmitter;
+
+	public Transmitter getTransmitter() {
+		return transmitter;
+	}
+
+	public void setTransmitter(Transmitter transmitter) {
+		if (transmitter != null) {
+			transmitter.setReceiver(this);
+		}
+		if (this.transmitter != null) {
+			this.transmitter.setReceiver(null);
+		}
+		this.transmitter = transmitter;
 	}
 
 }

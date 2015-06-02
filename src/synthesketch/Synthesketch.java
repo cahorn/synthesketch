@@ -84,9 +84,9 @@ public class Synthesketch {
 				KeyboardPanel keyboard = new KeyboardPanel();
 				try {
 					selectedMidi.open();
-					selectedMidi.getTransmitter().setReceiver(keyboard);
+					keyboard.setTransmitter(selectedMidi.getTransmitter());
 				} catch (MidiUnavailableException e) {}
-				keyboard.setReceiver(synth);
+				synth.setTransmitter(keyboard);
 				JDialog keyboardDialog = new JDialog(window, "Keyboard", false);
 				keyboardDialog
 						.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
