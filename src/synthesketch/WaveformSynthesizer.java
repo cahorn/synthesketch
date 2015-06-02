@@ -27,25 +27,83 @@ public class WaveformSynthesizer implements Receiver {
 
 	Mixer mixer;
 	AudioFormat format;
+	int numberOfOscillators;
 
-	public void setOutput(Mixer mixer, AudioFormat format)
-			throws LineUnavailableException, UnsupportedAudioFormatException {
-		this.mixer = mixer;
-		this.format = format;
-		createOscillators();
-		createSamples();
+	public Mixer getMixer() {
+		return mixer;
 	}
 
-	int numberOfOscillators = 8;
-
-	public void setNumberOfOscillators(int numberOfOscillators)
-			throws LineUnavailableException {
-		this.numberOfOscillators = numberOfOscillators;
-		createOscillators();
+	public AudioFormat getAudioFormat() {
+		return format;
 	}
 
 	public int getNumberOfOscillators() {
 		return numberOfOscillators;
+	}
+
+	public void setOutput(Mixer mixer, AudioFormat format)
+			throws IllegalArgumentException, LineUnavailableException,
+			UnsupportedAudioFormatException {
+		setOutput(mixer, format, 8);
+	}
+
+	public void setOutput(Mixer mixer, AudioFormat format,
+			int numberOfOscillators) throws IllegalArgumentException,
+			LineUnavailableException, UnsupportedAudioFormatException {
+		clearOutput();
+		if (mixer == null || format == null) {
+			throw new NullPointerException();
+		}
+		this.mixer = mixer;
+		if (format.getEncoding() != Encoding.PCM_SIGNED
+				&& format.getEncoding() != Encoding.PCM_UNSIGNED) {
+			throw new UnsupportedAudioFormatException(
+					"only PCM encoding is currently supported");
+		}
+		if (format.getSampleSizeInBits() != 8
+				&& format.getSampleSizeInBits() != 16
+				&& format.getSampleSizeInBits() != 32) {
+			throw new UnsupportedAudioFormatException(
+					"only 1, 2, and 4 byte samples are currently supported");
+		}
+		this.format = format;
+		if (numberOfOscillators < 1) {
+			throw new IllegalArgumentException(
+					"cannot create synthesizer with < 1 oscillator");
+		}
+		this.numberOfOscillators = numberOfOscillators;
+		try {
+			createOscillators();
+		} catch (IllegalArgumentException e) {
+			clearOutput();
+			throw new IllegalArgumentException(
+					"mixer cannot support the selected audio format");
+		} catch (LineUnavailableException e) {
+			clearOutput();
+			throw new LineUnavailableException(
+					"mixer cannot support the required number of data lines");
+		}
+		if (waveform != null) {
+			createSamples();
+		}
+	}
+
+	public void clearOutput() {
+		mixer = null;
+		format = null;
+		if (oscillators != null) {
+			for (Oscillator o : oscillators) {
+				o.active = false;
+				o.line.close();
+			}
+			oscillators = null;
+			activeOscillators = null;
+			idleOscillators = null;
+		}
+		if (threads != null) {
+			threads.shutdown();
+			threads = null;
+		}
 	}
 
 	List<Oscillator> oscillators;
@@ -54,45 +112,22 @@ public class WaveformSynthesizer implements Receiver {
 
 	ExecutorService threads;
 
-	void createOscillators() throws LineUnavailableException {
+	void createOscillators() throws IllegalArgumentException,
+			LineUnavailableException {
 		oscillators = new LinkedList<WaveformSynthesizer.Oscillator>();
 		activeOscillators = new TreeMap<Integer, Oscillator>();
 		idleOscillators = new LinkedList<Oscillator>();
 		threads = Executors.newCachedThreadPool();
 		for (int i = 0; i < numberOfOscillators; ++i) {
-			try {
-				SourceDataLine line = AudioSystem.getSourceDataLine(format,
-						mixer.getMixerInfo());
-				int bufferSize = (int) (MAX_SAMPLE_IN_SECONDS
-						* format.getFrameRate() * format.getFrameSize());
-				line.open(format, bufferSize);
-				Oscillator oscillator = new Oscillator(line);
-				oscillators.add(oscillator);
-				idleOscillators.add(oscillator);
-			} catch (IllegalArgumentException e) {
-				throw new IllegalArgumentException(
-						"mixer cannot support the selected audio format");
-			} catch (LineUnavailableException e) {
-				throw new LineUnavailableException(
-						"mixer cannot support the required number of data lines");
-			}
-		}
-	}
+			SourceDataLine line = AudioSystem.getSourceDataLine(format,
+					mixer.getMixerInfo());
+			int bufferSize = (int) (MAX_SAMPLE_IN_SECONDS
+					* format.getFrameRate() * format.getFrameSize());
+			line.open(format, bufferSize);
+			Oscillator oscillator = new Oscillator(line);
+			oscillators.add(oscillator);
+			idleOscillators.add(oscillator);
 
-	public void noteOn(int midiCode) {
-		if (!activeOscillators.containsKey(midiCode)
-				&& !idleOscillators.isEmpty()) {
-			Oscillator oscillator = idleOscillators.remove();
-			oscillator.midiCode = midiCode;
-			threads.execute(oscillator);
-			activeOscillators.put(midiCode, oscillator);
-		}
-	}
-
-	public void noteOff(int midiCode) {
-		if (activeOscillators.containsKey(midiCode)) {
-			Oscillator oscillator = activeOscillators.remove(midiCode);
-			oscillator.active = false;
 		}
 	}
 
@@ -121,16 +156,45 @@ public class WaveformSynthesizer implements Receiver {
 
 	}
 
-	double[] waveform;
-
-	public void setWaveform(double[] waveform)
-			throws UnsupportedAudioFormatException {
-		this.waveform = Arrays.copyOf(waveform, waveform.length);
-		createSamples();
+	public void noteOn(int midiCode) {
+		if (activeOscillators != null
+				&& !activeOscillators.containsKey(midiCode)
+				&& idleOscillators != null && !idleOscillators.isEmpty()) {
+			Oscillator oscillator = idleOscillators.remove();
+			oscillator.midiCode = midiCode;
+			threads.execute(oscillator);
+			activeOscillators.put(midiCode, oscillator);
+		}
 	}
 
+	public void noteOff(int midiCode) {
+		if (activeOscillators != null
+				&& activeOscillators.containsKey(midiCode)) {
+			Oscillator oscillator = activeOscillators.remove(midiCode);
+			oscillator.active = false;
+		}
+	}
+
+	double[] waveform;
+
 	public double[] getWaveform() {
-		return Arrays.copyOf(waveform, waveform.length);
+		if (waveform == null) {
+			return null;
+		} else {
+			return Arrays.copyOf(waveform, waveform.length);
+		}
+	}
+
+	public void setWaveform(double[] waveform) {
+		if (waveform == null) {
+			this.waveform = null;
+			this.samples = null;
+		} else {
+			this.waveform = Arrays.copyOf(waveform, waveform.length);
+			if (format != null) {
+				createSamples();
+			}
+		}
 	}
 
 	static final int MIN_MIDI = 36, MAX_MIDI = 96;
@@ -139,16 +203,14 @@ public class WaveformSynthesizer implements Receiver {
 
 	Map<Integer, byte[]> samples;
 
-	void createSamples() throws UnsupportedAudioFormatException {
-		if (waveform != null) {
-			samples = new TreeMap<Integer, byte[]>();
-			for (int midiCode = MIN_MIDI; midiCode <= MAX_MIDI; ++midiCode) {
-				createSample(midiCode);
-			}
+	void createSamples() {
+		samples = new TreeMap<Integer, byte[]>();
+		for (int midiCode = MIN_MIDI; midiCode <= MAX_MIDI; ++midiCode) {
+			createSample(midiCode);
 		}
 	}
 
-	void createSample(int midiCode) throws UnsupportedAudioFormatException {
+	void createSample(int midiCode) {
 		double frameInSeconds = 1 / format.getFrameRate();
 		double periodInSecond = 1 / frequency(midiCode);
 		double periodInFrames = periodInSecond / frameInSeconds;
@@ -165,11 +227,6 @@ public class WaveformSynthesizer implements Receiver {
 				: ByteOrder.LITTLE_ENDIAN);
 		ShortBuffer sampleAsShorts = sampleAsBytes.asShortBuffer();
 		IntBuffer sampleAsInts = sampleAsBytes.asIntBuffer();
-		if (format.getEncoding() != Encoding.PCM_SIGNED
-				&& format.getEncoding() != Encoding.PCM_UNSIGNED) {
-			throw new UnsupportedAudioFormatException(
-					"only PCM encoding is currently supported");
-		}
 		for (int i = 0; i < sample.length; ++i) {
 			for (int j = 0; j < format.getChannels(); ++j) {
 				if (format.getSampleSizeInBits() == 8) {
@@ -196,9 +253,6 @@ public class WaveformSynthesizer implements Receiver {
 					} else {
 						sampleAsInts.put(sampleAsInt + Integer.MAX_VALUE);
 					}
-				} else {
-					throw new UnsupportedAudioFormatException(
-							"only 1, 2, and 4 byte samples are currently supported");
 				}
 			}
 		}
@@ -229,10 +283,8 @@ public class WaveformSynthesizer implements Receiver {
 
 	@Override
 	public void close() {
-		for (Oscillator o : oscillators) {
-			o.active = false;
-		}
-		threads.shutdown();
+		clearOutput();
+		setWaveform(null);
 	}
 
 }

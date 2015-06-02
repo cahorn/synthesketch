@@ -73,15 +73,11 @@ public class Synthesketch {
 			public void run() {
 				final WaveformPanel editor = new WaveformPanel();
 				editor.setWaveform(Waveforms.SINE_WAVE);
-				try {
-					synth.setWaveform(editor.getWaveform());
-				} catch (UnsupportedAudioFormatException e) {}
+				synth.setWaveform(editor.getWaveform());
 				editor.addChangeListener(new ChangeListener() {
 					@Override
 					public void stateChanged(ChangeEvent e) {
-						try {
-							synth.setWaveform(editor.getWaveform());
-						} catch (UnsupportedAudioFormatException except) {}
+						synth.setWaveform(editor.getWaveform());
 					}
 				});
 				JFrame window = new JFrame("Waveform");
