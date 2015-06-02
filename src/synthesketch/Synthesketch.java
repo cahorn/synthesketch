@@ -1,11 +1,6 @@
 package synthesketch;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-
 import javax.sound.midi.MidiDevice;
-import javax.sound.midi.MidiSystem;
 import javax.sound.midi.MidiUnavailableException;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
@@ -24,28 +19,6 @@ public class Synthesketch {
 	public static void main(String[] args) throws LineUnavailableException,
 			UnsupportedAudioFormatException, InterruptedException {
 		final WaveformSynthesizer synth = new WaveformSynthesizer();
-		Scanner input = new Scanner(System.in);
-		List<MidiDevice> midis = new ArrayList<MidiDevice>();
-		for (MidiDevice.Info midiInfo : MidiSystem.getMidiDeviceInfo()) {
-			try {
-				MidiDevice midi = MidiSystem.getMidiDevice(midiInfo);
-				midi.open();
-				midi.getTransmitter();
-				midi.close();
-				midis.add(midi);
-			} catch (Exception e) {
-				if (DEBUG) {
-					System.out.println(midiInfo + ": " + e.getMessage());
-				}
-			}
-		}
-		for (int i = 0; i < midis.size(); ++i) {
-			System.out.format("%2d: %s", i, midis.get(i).getDeviceInfo());
-			System.out.println();
-		}
-		System.out.print("Select a midi input: ");
-		final MidiDevice selectedMidi = midis.get(input.nextInt());
-		input.close();
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				final AudioPreferencesPanel audio = new AudioPreferencesPanel();
@@ -67,6 +40,7 @@ public class Synthesketch {
 						}
 					}
 				});
+
 				final WaveformPanel editor = new WaveformPanel();
 				editor.setWaveform(Waveforms.SINE_WAVE);
 				synth.setWaveform(editor.getWaveform());
@@ -75,18 +49,28 @@ public class Synthesketch {
 						synth.setWaveform(editor.getWaveform());
 					}
 				});
+				final KeyboardPanel keyboard = new KeyboardPanel();
+				synth.setTransmitter(keyboard);
+				final MidiPreferencesPanel midi = new MidiPreferencesPanel();
+				midi.addChangeListener(new ChangeListener() {
+					public void stateChanged(ChangeEvent e) {
+						try {
+							MidiDevice device = midi.getMidi();
+							if (device != null) {
+								device.open();
+								keyboard.setTransmitter(device.getTransmitter());
+							} else {
+								keyboard.setTransmitter(null);
+							}
+						} catch (MidiUnavailableException exp) {}
+					}
+				});
 				JFrame window = new JFrame("Waveform");
 				window.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 				window.add(editor);
 				window.pack();
 				window.setResizable(false);
 				window.setVisible(true);
-				KeyboardPanel keyboard = new KeyboardPanel();
-				try {
-					selectedMidi.open();
-					keyboard.setTransmitter(selectedMidi.getTransmitter());
-				} catch (MidiUnavailableException e) {}
-				synth.setTransmitter(keyboard);
 				JDialog keyboardDialog = new JDialog(window, "Keyboard", false);
 				keyboardDialog
 						.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
@@ -102,6 +86,13 @@ public class Synthesketch {
 				audioDialog.add(audio);
 				audioDialog.pack();
 				audioDialog.setVisible(true);
+				JDialog midiDialog = new JDialog(window, "Midi Preferences",
+						false);
+				midiDialog
+						.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+				midiDialog.add(midi);
+				midiDialog.pack();
+				midiDialog.setVisible(true);
 			}
 		});
 	}
