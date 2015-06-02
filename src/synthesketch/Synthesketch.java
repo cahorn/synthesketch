@@ -1,7 +1,6 @@
 package synthesketch;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Scanner;
 
@@ -9,9 +8,7 @@ import javax.sound.midi.MidiDevice;
 import javax.sound.midi.MidiSystem;
 import javax.sound.midi.MidiUnavailableException;
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.Mixer;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
@@ -22,30 +19,12 @@ public class Synthesketch {
 
 	static final boolean DEBUG = false;
 
-	static final AudioFormat FORMAT = new AudioFormat(44100, 32, 1, true, false);
+	static final AudioFormat FORMAT = new AudioFormat(44100, 16, 1, true, false);
 
 	public static void main(String[] args) throws LineUnavailableException,
 			UnsupportedAudioFormatException, InterruptedException {
 		final WaveformSynthesizer synth = new WaveformSynthesizer();
 		Scanner input = new Scanner(System.in);
-		List<Mixer> mixers = new LinkedList<Mixer>();
-		for (Mixer.Info mixerInfo : AudioSystem.getMixerInfo()) {
-			Mixer mixer = AudioSystem.getMixer(mixerInfo);
-			try {
-				synth.setOutput(mixer, FORMAT);
-				mixers.add(mixer);
-			} catch (Exception e) {
-				if (DEBUG) {
-					System.out.println(mixerInfo + ": " + e.getMessage());
-				}
-			}
-		}
-		for (int i = 0; i < mixers.size(); ++i) {
-			System.out.format("%2d: %s", i, mixers.get(i).getMixerInfo());
-			System.out.println();
-		}
-		System.out.print("Select a mixer: ");
-		Mixer selectedMixer = mixers.get(input.nextInt());
 		List<MidiDevice> midis = new ArrayList<MidiDevice>();
 		for (MidiDevice.Info midiInfo : MidiSystem.getMidiDeviceInfo()) {
 			try {
@@ -67,15 +46,31 @@ public class Synthesketch {
 		System.out.print("Select a midi input: ");
 		final MidiDevice selectedMidi = midis.get(input.nextInt());
 		input.close();
-		synth.setOutput(selectedMixer, FORMAT);
 		SwingUtilities.invokeLater(new Runnable() {
-			@Override
 			public void run() {
+				final AudioPreferencesPanel audio = new AudioPreferencesPanel();
+				try {
+					audio.setAudioFormat(FORMAT);
+				} catch (UnsupportedAudioFormatException e) {}
+				try {
+					synth.setOutput(audio.getMixer(), audio.getAudioFormat());
+				} catch (Exception e) {}
+				audio.addChangeListener(new ChangeListener() {
+					public void stateChanged(ChangeEvent e) {
+						try {
+							try {
+								synth.setOutput(audio.getMixer(),
+										audio.getAudioFormat());
+							} catch (NullPointerException exp) {}
+						} catch (Exception exp) {
+							System.err.println("error: " + exp.getMessage());
+						}
+					}
+				});
 				final WaveformPanel editor = new WaveformPanel();
 				editor.setWaveform(Waveforms.SINE_WAVE);
 				synth.setWaveform(editor.getWaveform());
 				editor.addChangeListener(new ChangeListener() {
-					@Override
 					public void stateChanged(ChangeEvent e) {
 						synth.setWaveform(editor.getWaveform());
 					}
@@ -92,13 +87,21 @@ public class Synthesketch {
 					selectedMidi.getTransmitter().setReceiver(keyboard);
 				} catch (MidiUnavailableException e) {}
 				keyboard.setReceiver(synth);
-				JDialog dialog = new JDialog(window, "Keyboard", false);
-				dialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-				dialog.add(keyboard);
-				dialog.pack();
-				dialog.addKeyListener(keyboard);
-				dialog.setResizable(false);
-				dialog.setVisible(true);
+				JDialog keyboardDialog = new JDialog(window, "Keyboard", false);
+				keyboardDialog
+						.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+				keyboardDialog.add(keyboard);
+				keyboardDialog.pack();
+				keyboardDialog.addKeyListener(keyboard);
+				keyboardDialog.setResizable(false);
+				keyboardDialog.setVisible(true);
+				JDialog audioDialog = new JDialog(window, "Audio Preferences",
+						false);
+				audioDialog
+						.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+				audioDialog.add(audio);
+				audioDialog.pack();
+				audioDialog.setVisible(true);
 			}
 		});
 	}
