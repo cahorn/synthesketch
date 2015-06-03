@@ -20,7 +20,7 @@ public class Waveforms {
 	public static final double[] SAW_WAVE = new double[44100];
 	static {
 		for (int i = 0; i < SAW_WAVE.length; ++i) {
-			SAW_WAVE[i] = (double) i / SAW_WAVE.length;
+			SAW_WAVE[i] = (double) i / SAW_WAVE.length * 2 - 1;
 		}
 	}
 
